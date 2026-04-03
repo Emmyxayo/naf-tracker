@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NAF Asset Tracker — Nigerian Air Force</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root {
+  --navy:#042C53;--navy-mid:#0C447C;--navy-light:#185FA5;
+  --sky:#378ADD;--sky-light:#B5D4F4;--sky-pale:#E6F1FB;
+  --green:#3B6D11;--green-light:#EAF3DE;--green-mid:#639922;
+  --amber:#854F0B;--amber-light:#FAEEDA;--amber-mid:#BA7517;
+  --red:#A32D2D;--red-light:#FCEBEB;
+  --purple:#3C3489;--purple-light:#EEEDFE;
+  --teal:#085041;--teal-light:#E1F5EE;
+  --coral:#993C1D;--coral-light:#FAECE7;
+  --bg:#f0f2f5;--surface:#fff;--border:rgba(0,0,0,0.08);
+  --text:#1a1a18;--muted:#666663;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+h1,h2,h3,h4{font-family:'Syne',sans-serif}
+button{cursor:pointer;font-family:'DM Sans',sans-serif}
+input,select,textarea{font-family:'DM Sans',sans-serif}
+a{color:inherit;text-decoration:none}
+
+/* ─ TOAST ─ */
+#toast{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast-msg{background:var(--navy);color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;opacity:0;transform:translateY(10px);transition:all 0.3s;pointer-events:none}
+.toast-msg.show{opacity:1;transform:translateY(0)}
+
+/* ─ LOGIN ─ */
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--navy);position:relative;overflow:hidden}
+#login-screen::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent,transparent 60px,rgba(255,255,255,0.015) 60px,rgba(255,255,255,0.015) 61px)}
+.login-wrap{display:flex;gap:0;border-radius:20px;overflow:hidden;max-width:820px;width:100%;position:relative;z-index:1}
+.login-side{background:var(--navy-mid);padding:48px 36px;width:300px;flex-shrink:0;display:flex;flex-direction:column;justify-content:space-between}
+.login-side h2{font-size:26px;color:#fff;line-height:1.2;margin-bottom:12px}
+.login-side p{font-size:13px;color:var(--sky-light);line-height:1.7}
+.login-side .bases{margin-top:24px}
+.login-side .base-tag{display:inline-block;background:rgba(255,255,255,0.1);color:var(--sky-light);font-size:11px;padding:4px 10px;border-radius:20px;margin:3px 3px 0 0}
+.login-card{background:#fff;padding:48px 40px;flex:1}
+.login-logo{display:flex;align-items:center;gap:12px;margin-bottom:32px}
+.login-logo-icon{width:44px;height:44px;background:var(--navy);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px}
+.login-logo h1{font-size:16px;color:var(--navy);line-height:1.2}
+.login-logo p{font-size:11px;color:var(--muted)}
+.login-card h2{font-size:22px;margin-bottom:6px;color:var(--navy)}
+.login-card>p{font-size:13px;color:var(--muted);margin-bottom:28px}
+.tabs-auth{display:flex;gap:4px;margin-bottom:24px;background:var(--bg);border-radius:10px;padding:4px}
+.tab-auth{flex:1;text-align:center;padding:8px;border-radius:8px;font-size:13px;color:var(--muted);cursor:pointer;border:none;background:none;transition:all .15s;font-family:'DM Sans',sans-serif}
+.tab-auth.active{background:#fff;color:var(--navy);font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:11px;font-weight:500;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em}
+.form-group input,.form-group select{width:100%;padding:10px 13px;border:1px solid var(--border);border-radius:9px;font-size:14px;color:var(--text);background:var(--bg);outline:none;transition:border-color .15s}
+.form-group input:focus,.form-group select:focus{border-color:var(--sky);background:#fff}
+.btn-primary{width:100%;padding:12px;background:var(--navy);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:500;margin-top:6px;transition:background .15s}
+.btn-primary:hover{background:var(--navy-mid)}
+.login-note{font-size:11px;color:var(--muted);text-align:center;margin-top:16px}
+.auth-form{display:none}.auth-form.active{display:block}
+.role-badge-wrap{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.role-badge{padding:6px 14px;border-radius:20px;font-size:12px;border:1px solid var(--border);cursor:pointer;background:var(--bg);color:var(--muted);transition:all .15s}
+.role-badge.selected{background:var(--sky-pale);border-color:var(--sky);color:var(--navy-light);font-weight:500}
+
+/* ─ LAYOUT ─ */
+#app{display:none}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:240px;background:var(--navy);display:flex;flex-direction:column;z-index:100;transition:transform .25s}
+.sidebar-logo{padding:22px 20px 18px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px}
+.sidebar-logo-icon{width:34px;height:34px;background:rgba(255,255,255,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px}
+.sidebar-logo h2{color:#fff;font-size:13px;line-height:1.2}
+.sidebar-logo p{color:var(--sky-light);font-size:10px}
+.sidebar-nav{flex:1;padding:14px 10px;overflow-y:auto}
+.nav-section-label{font-size:10px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em;padding:12px 8px 5px;font-family:'Syne',sans-serif}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:rgba(255,255,255,.65);font-size:13px;cursor:pointer;transition:all .15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:var(--navy-light);color:#fff}
+.nav-item .nav-icon{font-size:15px;width:20px;text-align:center}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;padding:1px 6px;border-radius:20px;font-weight:600}
+.sidebar-user{padding:14px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:var(--sky);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;flex-shrink:0}
+.user-info p{color:#fff;font-size:12px;font-weight:500}
+.user-info span{color:var(--sky-light);font-size:10px}
+.logout-btn{margin-left:auto;background:none;border:none;color:rgba(255,255,255,.4);font-size:15px;cursor:pointer;transition:color .15s}
+.logout-btn:hover{color:#fff}
+.main{margin-left:240px;min-height:100vh}
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:13px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar h1{font-size:19px;color:var(--navy)}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.base-badge{background:var(--sky-pale);color:var(--navy-light);font-size:11px;padding:4px 12px;border-radius:20px;font-weight:500}
+.role-chip{font-size:11px;padding:4px 10px;border-radius:20px;font-weight:500}
+.role-admin{background:var(--purple-light);color:var(--purple)}
+.role-officer{background:var(--sky-pale);color:var(--navy-light)}
+.role-technician{background:var(--green-light);color:var(--green)}
+.role-viewer{background:var(--bg);color:var(--muted)}
+.btn-add{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:8px 15px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px;transition:background .15s}
+.btn-add:hover{background:var(--navy-mid)}
+.btn-export{background:var(--green-light);color:var(--green);border:1px solid rgba(99,153,34,.3);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:5px;transition:all .15s}
+.btn-export:hover{background:var(--green);color:#fff}
+.page-content{padding:26px;display:none}
+.page-content.active{display:block}
+
+/* ─ STATS ─ */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.stat-card{background:#fff;border-radius:14px;padding:18px;border:1px solid var(--border);position:relative;overflow:hidden}
+.stat-card::after{content:'';position:absolute;right:-10px;top:-10px;width:60px;height:60px;border-radius:50%;opacity:.06}
+.stat-card.blue::after{background:var(--sky)}
+.stat-card.green::after{background:var(--green)}
+.stat-card.purple::after{background:var(--purple)}
+.stat-card.amber::after{background:var(--amber-mid)}
+.stat-card.red::after{background:var(--red)}
+.stat-label{font-size:11px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+.stat-val{font-size:30px;font-weight:700;font-family:'Syne',sans-serif;line-height:1;margin-bottom:5px}
+.stat-sub{font-size:11px}
+.stat-card.blue .stat-val{color:var(--navy-light)}
+.stat-card.green .stat-val{color:var(--green)}
+.stat-card.purple .stat-val{color:var(--purple)}
+.stat-card.amber .stat-val{color:var(--amber-mid)}
+.stat-card.red .stat-val{color:var(--red)}
+
+/* ─ CARDS & TABLES ─ */
+.card{background:#fff;border-radius:14px;border:1px solid var(--border);overflow:hidden;margin-bottom:20px}
+.card-header{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.card-header h3{font-size:14px;color:var(--navy)}
+.card-header-actions{display:flex;align-items:center;gap:10px}
+.search-input{padding:7px 11px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;color:var(--text);transition:border-color .15s;width:200px}
+.search-input:focus{border-color:var(--sky)}
+table{width:100%;border-collapse:collapse}
+thead th{text-align:left;padding:10px 20px;font-size:11px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.05em;background:var(--bg);border-bottom:1px solid var(--border)}
+tbody td{padding:12px 20px;font-size:13px;border-bottom:1px solid var(--border);color:var(--text)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--bg)}
+.asset-cell{display:flex;align-items:center;gap:10px}
+.asset-cell-icon{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.ai{background:var(--sky-pale)}.ve{background:var(--green-light)}.cr{background:var(--purple-light)}.mn{background:var(--amber-light)}
+.asset-cell-name{font-weight:500;font-size:13px}
+.asset-cell-sub{font-size:11px;color:var(--muted)}
+.pill{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500}
+.pill-op{background:var(--green-light);color:var(--green)}
+.pill-maint{background:var(--amber-light);color:var(--amber)}
+.pill-ground{background:var(--red-light);color:var(--red)}
+.pill-active{background:var(--purple-light);color:var(--purple)}
+.pill-avail{background:var(--teal-light);color:var(--teal)}
+.pill-overdue{background:var(--red-light);color:var(--red);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.action-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted);cursor:pointer;margin-right:4px;transition:all .15s}
+.action-btn:hover{border-color:var(--sky);color:var(--navy-light)}
+.del-btn:hover{border-color:var(--red);color:var(--red)}
+.empty-state{text-align:center;padding:44px 24px;color:var(--muted)}
+.empty-state .empty-icon{font-size:38px;margin-bottom:10px}
+.empty-state p{font-size:13px}
+
+/* ─ MODAL ─ */
+.modal-overlay{position:fixed;inset:0;background:rgba(4,44,83,.5);display:none;align-items:center;justify-content:center;z-index:200;padding:16px}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:18px;padding:30px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:19px;color:var(--navy);margin-bottom:5px}
+.modal-sub{font-size:13px;color:var(--muted);margin-bottom:22px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal .form-group{margin-bottom:14px}
+.modal .form-group label{display:block;font-size:11px;font-weight:500;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.modal .form-group input,.modal .form-group select,.modal .form-group textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);outline:none;transition:border-color .15s;background:#fff}
+.modal .form-group input:focus,.modal .form-group select:focus,.modal .form-group textarea:focus{border-color:var(--sky)}
+.modal .form-group textarea{resize:vertical;min-height:70px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+.btn-cancel{padding:9px 18px;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--muted);background:none;transition:all .15s}
+.btn-cancel:hover{border-color:var(--muted);color:var(--text)}
+.btn-save{padding:9px 22px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:500;transition:background .15s}
+.btn-save:hover{background:var(--navy-mid)}
+.modal-overlay[data-close]{cursor:pointer}
+
+/* ─ DASHBOARD ─ */
+.dashboard-grid{display:grid;grid-template-columns:2fr 1fr;gap:18px}
+.activity-item{display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-bottom:1px solid var(--border)}
+.activity-item:last-child{border-bottom:none}
+.act-icon{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.act-info p{font-size:13px;font-weight:500}
+.act-info span{font-size:11px;color:var(--muted)}
+.act-time{margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap;padding-left:8px}
+.alert-item{display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-bottom:1px solid var(--border)}
+.alert-item:last-child{border-bottom:none}
+.alert-dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.alert-amber{background:var(--amber-mid)}.alert-red{background:var(--red)}.alert-green{background:var(--green-mid)}
+.alert-info p{font-size:13px;font-weight:500}
+.alert-info span{font-size:11px;color:var(--muted)}
+
+/* ─ MAINTENANCE SCHEDULE ─ */
+.maint-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;align-items:center;gap:14px}
+.maint-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.maint-info{flex:1}
+.maint-info h4{font-size:13px;font-weight:500;color:var(--text)}
+.maint-info p{font-size:11px;color:var(--muted);margin-top:2px}
+.maint-date{text-align:right}
+.maint-date .date-val{font-size:13px;font-weight:500;font-family:'Syne',sans-serif}
+.maint-date .date-sub{font-size:11px;color:var(--muted)}
+.days-badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:500;display:inline-block;margin-top:4px}
+.days-ok{background:var(--green-light);color:var(--green)}
+.days-soon{background:var(--amber-light);color:var(--amber)}
+.days-overdue{background:var(--red-light);color:var(--red)}
+.progress-bar{height:4px;background:var(--bg);border-radius:2px;margin-top:8px;overflow:hidden}
+.progress-fill{height:100%;border-radius:2px;transition:width .4s}
+
+/* ─ ASSIGNMENTS ─ */
+.assign-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:10px}
+.assign-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.assign-header h4{font-size:13px;font-weight:500}
+.assign-crew-list{display:flex;flex-wrap:wrap;gap:8px}
+.crew-chip{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:12px}
+.crew-chip-av{width:20px;height:20px;border-radius:50%;background:var(--sky-pale);color:var(--navy-mid);font-size:9px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.crew-chip .remove-crew{background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0 0 0 4px;line-height:1}
+.crew-chip .remove-crew:hover{color:var(--red)}
+.no-assign{font-size:12px;color:var(--muted);font-style:italic}
+
+/* ─ REPORTS ─ */
+.report-bar-wrap{margin-bottom:14px}
+.report-bar-label{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+.report-bar-label span:first-child{color:var(--text);font-weight:500}
+.report-bar-label span:last-child{color:var(--muted)}
+.report-bar{height:10px;background:var(--bg);border-radius:5px;overflow:hidden}
+.report-bar-fill{height:100%;border-radius:5px;transition:width .6s}
+
+/* ─ USERS PAGE ─ */
+.user-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:10px;display:flex;align-items:center;gap:14px}
+.user-av-lg{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#fff;flex-shrink:0}
+.user-card-info{flex:1}
+.user-card-info h4{font-size:14px;font-weight:500}
+.user-card-info p{font-size:12px;color:var(--muted);margin-top:2px}
+.perm-list{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.perm-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:var(--bg);color:var(--muted);border:1px solid var(--border)}
+.perm-tag.on{background:var(--sky-pale);color:var(--navy-light);border-color:rgba(24,95,165,.2)}
+
+/* ─ HAMBURGER ─ */
+.hamburger{display:none;background:none;border:none;font-size:21px;cursor:pointer}
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}.hamburger{display:block}
+  .stats-grid{grid-template-columns:1fr 1fr}.dashboard-grid{grid-template-columns:1fr}
+  .form-row{grid-template-columns:1fr}.login-side{display:none}
+  .login-wrap{max-width:420px}.login-card{border-radius:20px}
+}
+@media(max-width:600px){.stats-grid{grid-template-columns:1fr 1fr}.page-content{padding:14px}}
+.av-blue{background:var(--sky-pale);color:var(--navy-mid)}
+.av-purple{background:var(--purple-light);color:var(--purple)}
+.av-teal{background:var(--teal-light);color:var(--teal)}
+.av-coral{background:var(--coral-light);color:var(--coral)}
+.av-green{background:var(--green-light);color:var(--green)}
+.section-divider{height:1px;background:var(--border);margin:20px 0}
+.info-box{background:var(--sky-pale);border:1px solid rgba(55,138,221,.2);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--navy-mid);margin-bottom:16px;display:flex;align-items:flex-start;gap:10px}
+.warn-box{background:var(--amber-light);border:1px solid rgba(186,117,23,.2);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--amber);margin-bottom:16px}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+
+<!-- ══ LOGIN ══ -->
+<div id="login-screen">
+  <div class="login-wrap">
+    <div class="login-side">
+      <div>
+        <div style="font-size:32px;margin-bottom:16px;">✈</div>
+        <h2>NAF Asset Tracker</h2>
+        <p>Unified asset management for the Nigerian Air Force — aircraft, vehicles, and personnel across all bases.</p>
+        <div class="bases" style="margin-top:24px">
+          <div style="font-size:11px;color:var(--sky-light);margin-bottom:8px;text-transform:uppercase;letter-spacing:.08em;">Active Bases</div>
+          <span class="base-tag">Kaduna</span><span class="base-tag">Lagos</span><span class="base-tag">Abuja</span>
+          <span class="base-tag">Kainji</span><span class="base-tag">Makurdi</span><span class="base-tag">Maiduguri</span>
+          <span class="base-tag">Yola</span><span class="base-tag">Enugu</span>
+        </div>
+      </div>
+      <div style="font-size:11px;color:rgba(255,255,255,.25);">© Nigerian Air Force · Confidential</div>
+    </div>
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="login-logo-icon">✈</div>
+        <div><h1>NAF Asset Tracker</h1><p>Nigerian Air Force</p></div>
+      </div>
+      <div class="tabs-auth">
+        <button class="tab-auth active" onclick="switchAuthTab('login')">Sign In</button>
+        <button class="tab-auth" onclick="switchAuthTab('register')">Register</button>
+      </div>
+
+      <!-- SIGN IN -->
+      <div id="auth-login" class="auth-form active">
+        <div class="form-group"><label>Service Number</label><input id="l-svc" placeholder="e.g. NAF/2024/001"/></div>
+        <div class="form-group"><label>Password</label><input type="password" id="l-pass" placeholder="Enter your password" onkeydown="if(event.key==='Enter')login()"/></div>
+        <div class="form-group"><label>Base / Station</label>
+          <select id="l-base">
+            <option value="">Select your base</option>
+            <option>NAF Base Kaduna</option><option>NAF Base Lagos (Ikeja)</option>
+            <option>NAF Base Abuja</option><option>NAF Base Kainji</option>
+            <option>NAF Base Makurdi</option><option>NAF Base Maiduguri</option>
+            <option>NAF Base Yola</option><option>NAF Base Enugu</option>
+          </select>
+        </div>
+        <button class="btn-primary" onclick="login()">Sign In</button>
+        <p class="login-note">Demo: any credentials · Admin role = full access</p>
+      </div>
+
+      <!-- REGISTER -->
+      <div id="auth-register" class="auth-form">
+        <div class="form-row">
+          <div class="form-group"><label>Full Name</label><input id="r-name" placeholder="e.g. Emeka Obi"/></div>
+          <div class="form-group"><label>Service No.</label><input id="r-svc" placeholder="NAF/2024/001"/></div>
+        </div>
+        <div class="form-group"><label>Password</label><input type="password" id="r-pass" placeholder="Create a password"/></div>
+        <div class="form-row">
+          <div class="form-group"><label>Base</label>
+            <select id="r-base">
+              <option value="">Select base</option>
+              <option>NAF Base Kaduna</option><option>NAF Base Lagos (Ikeja)</option>
+              <option>NAF Base Abuja</option><option>NAF Base Kainji</option>
+              <option>NAF Base Makurdi</option><option>NAF Base Maiduguri</option>
+              <option>NAF Base Yola</option><option>NAF Base Enugu</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Rank</label>
+            <select id="r-rank">
+              <option>Squadron Leader</option><option>Flight Lieutenant</option>
+              <option>Wing Commander</option><option>Group Captain</option>
+              <option>Warrant Officer</option><option>Flight Sergeant</option>
+              <option>Corporal</option><option>Aircraftman</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label>Role / Access Level</label>
+          <div class="role-badge-wrap">
+            <div class="role-badge selected" onclick="selectRole(this,'Admin')">Admin</div>
+            <div class="role-badge" onclick="selectRole(this,'Officer')">Officer</div>
+            <div class="role-badge" onclick="selectRole(this,'Technician')">Technician</div>
+            <div class="role-badge" onclick="selectRole(this,'Viewer')">Viewer</div>
+          </div>
+          <input type="hidden" id="r-role" value="Admin"/>
+        </div>
+        <button class="btn-primary" onclick="register()">Create Account</button>
+        <p class="login-note">Your account will be saved locally for this demo</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">✈</div>
+      <div><h2>NAF Tracker</h2><p>Asset Management v2</p></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <button class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">⊞</span> Dashboard</button>
+      <div class="nav-section-label">Assets</div>
+      <button class="nav-item" onclick="showPage('aircraft',this)"><span class="nav-icon">✈</span> Aircraft</button>
+      <button class="nav-item" onclick="showPage('vehicles',this)"><span class="nav-icon">🚛</span> Vehicles</button>
+      <button class="nav-item" onclick="showPage('crew',this)"><span class="nav-icon">👤</span> Personnel</button>
+      <div class="nav-section-label">Operations</div>
+      <button class="nav-item" onclick="showPage('maintenance',this)"><span class="nav-icon">🔧</span> Maintenance <span class="nav-badge" id="maint-badge" style="display:none">0</span></button>
+      <button class="nav-item" onclick="showPage('assignments',this)"><span class="nav-icon">📋</span> Assignments</button>
+      <div class="nav-section-label">System</div>
+      <button class="nav-item" onclick="showPage('reports',this)"><span class="nav-icon">📊</span> Reports</button>
+      <button class="nav-item" id="nav-users" onclick="showPage('users',this)"><span class="nav-icon">🔐</span> User Access</button>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="user-av">CO</div>
+      <div class="user-info"><p id="user-name">Officer</p><span id="user-base">NAF Base Kaduna</span></div>
+      <button class="logout-btn" onclick="logout()" title="Logout">⏻</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="hamburger" onclick="toggleSidebar()">☰</button>
+        <h1 id="page-title">Dashboard</h1>
+      </div>
+      <div class="topbar-right">
+        <span class="role-chip" id="role-chip">Admin</span>
+        <span class="base-badge" id="topbar-base">NAF Base Kaduna</span>
+        <button class="btn-export" id="export-btn" onclick="exportPDF()" style="display:none">⬇ Export PDF</button>
+        <button class="btn-add" id="add-btn" onclick="openAddModal()" style="display:none">+ Add</button>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page-content active">
+      <div class="stats-grid">
+        <div class="stat-card blue"><div class="stat-label">Total Aircraft</div><div class="stat-val" id="d-aircraft">0</div><div class="stat-sub" style="color:var(--green-mid)" id="d-aircraft-op">0 operational</div></div>
+        <div class="stat-card green"><div class="stat-label">Ground Vehicles</div><div class="stat-val" id="d-vehicles">0</div><div class="stat-sub" style="color:var(--green-mid)" id="d-vehicles-av">0 available</div></div>
+        <div class="stat-card purple"><div class="stat-label">Personnel</div><div class="stat-val" id="d-crew">0</div><div class="stat-sub" style="color:var(--muted)">Registered</div></div>
+        <div class="stat-card amber"><div class="stat-label">In Maintenance</div><div class="stat-val" id="d-maint">0</div><div class="stat-sub" id="d-overdue" style="color:var(--red)"></div></div>
+      </div>
+      <div class="dashboard-grid">
+        <div class="card"><div class="card-header"><h3>Recent Activity</h3></div><div style="padding:0 22px" id="recent-activity"><div class="empty-state"><div class="empty-icon">📋</div><p>No activity yet.</p></div></div></div>
+        <div class="card"><div class="card-header"><h3>Alerts</h3></div><div style="padding:0 22px" id="alerts-panel"><div class="empty-state"><div class="empty-icon">✅</div><p>No alerts.</p></div></div></div>
+      </div>
+    </div>
+
+    <!-- AIRCRAFT -->
+    <div id="page-aircraft" class="page-content">
+      <div class="card">
+        <div class="card-header"><h3>Aircraft Fleet</h3><div class="card-header-actions"><input type="text" class="search-input" placeholder="🔍 Search..." oninput="filterTable('aircraft-body',this.value)"/></div></div>
+        <table><thead><tr><th>Aircraft</th><th>Tail No.</th><th>Type</th><th>Base</th><th>Status</th><th>Crew Assigned</th><th>Actions</th></tr></thead><tbody id="aircraft-body"></tbody></table>
+        <div id="aircraft-empty" class="empty-state" style="display:none"><div class="empty-icon">✈</div><p>No aircraft registered. Click "+ Add" to begin.</p></div>
+      </div>
+    </div>
+
+    <!-- VEHICLES -->
+    <div id="page-vehicles" class="page-content">
+      <div class="card">
+        <div class="card-header"><h3>Ground Vehicles & Equipment</h3><div class="card-header-actions"><input type="text" class="search-input" placeholder="🔍 Search..." oninput="filterTable('vehicles-body',this.value)"/></div></div>
+        <table><thead><tr><th>Vehicle</th><th>Plate No.</th><th>Type</th><th>Base</th><th>Status</th><th>Assigned To</th><th>Actions</th></tr></thead><tbody id="vehicles-body"></tbody></table>
+        <div id="vehicles-empty" class="empty-state" style="display:none"><div class="empty-icon">🚛</div><p>No vehicles registered.</p></div>
+      </div>
+    </div>
+
+    <!-- PERSONNEL -->
+    <div id="page-crew" class="page-content">
+      <div class="card">
+        <div class="card-header"><h3>Personnel Registry</h3><div class="card-header-actions"><input type="text" class="search-input" placeholder="🔍 Search..." oninput="filterTable('crew-body',this.value)"/></div></div>
+        <table><thead><tr><th>Personnel</th><th>Rank</th><th>Role</th><th>Base</th><th>Assigned Asset</th><th>Status</th><th>Actions</th></tr></thead><tbody id="crew-body"></tbody></table>
+        <div id="crew-empty" class="empty-state" style="display:none"><div class="empty-icon">👤</div><p>No personnel registered.</p></div>
+      </div>
+    </div>
+
+    <!-- MAINTENANCE -->
+    <div id="page-maintenance" class="page-content">
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-card red"><div class="stat-label">Overdue</div><div class="stat-val" id="m-overdue">0</div><div class="stat-sub" style="color:var(--muted)">Past scheduled date</div></div>
+        <div class="stat-card amber"><div class="stat-label">Due Soon</div><div class="stat-val" id="m-soon">0</div><div class="stat-sub" style="color:var(--muted)">Within 7 days</div></div>
+        <div class="stat-card green"><div class="stat-label">Completed</div><div class="stat-val" id="m-done">0</div><div class="stat-sub" style="color:var(--muted)">This month</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>Maintenance Schedule</h3><button class="btn-add" onclick="openModal('modal-maintenance')">+ Schedule</button></div>
+        <div style="padding:16px" id="maintenance-list"><div class="empty-state"><div class="empty-icon">🔧</div><p>No maintenance scheduled.</p></div></div>
+      </div>
+    </div>
+
+    <!-- ASSIGNMENTS -->
+    <div id="page-assignments" class="page-content">
+      <div class="info-box">ℹ️ Assign crew members to aircraft or vehicles. Changes are reflected in Personnel and Asset pages.</div>
+      <div class="card">
+        <div class="card-header"><h3>Aircraft Assignments</h3><button class="btn-add" onclick="openModal('modal-assign')">+ Assign Crew</button></div>
+        <div style="padding:16px" id="assign-aircraft-list"><div class="empty-state"><div class="empty-icon">✈</div><p>Add aircraft first, then assign crew here.</p></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>Vehicle Assignments</h3></div>
+        <div style="padding:16px" id="assign-vehicle-list"><div class="empty-state"><div class="empty-icon">🚛</div><p>Add vehicles first.</p></div></div>
+      </div>
+    </div>
+
+    <!-- REPORTS -->
+    <div id="page-reports" class="page-content">
+      <div class="stats-grid">
+        <div class="stat-card blue"><div class="stat-label">Fleet Readiness</div><div class="stat-val" id="r-readiness">0%</div><div class="stat-sub" style="color:var(--muted)">Aircraft operational</div></div>
+        <div class="stat-card green"><div class="stat-label">Vehicle Availability</div><div class="stat-val" id="r-vavail">0%</div><div class="stat-sub" style="color:var(--muted)">Vehicles available</div></div>
+        <div class="stat-card purple"><div class="stat-label">Total Assets</div><div class="stat-val" id="r-total">0</div><div class="stat-sub" style="color:var(--muted)">All categories</div></div>
+        <div class="stat-card amber"><div class="stat-label">Maintenance Rate</div><div class="stat-val" id="r-mrate">0%</div><div class="stat-sub" style="color:var(--muted)">Assets in maintenance</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+        <div class="card"><div class="card-header"><h3>Fleet Status Breakdown</h3></div><div style="padding:20px" id="report-breakdown"></div></div>
+        <div class="card"><div class="card-header"><h3>Assets by Base</h3></div><div style="padding:20px" id="report-bases"></div></div>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div id="page-users" class="page-content">
+      <div class="info-box">🔐 Manage system users and access permissions. Only Admins can access this page.</div>
+      <div class="card">
+        <div class="card-header"><h3>Registered Users</h3><button class="btn-add" onclick="switchAuthTab('register');document.getElementById('login-screen').style.display='flex';document.getElementById('app').style.display='none'">+ New User</button></div>
+        <div style="padding:16px" id="users-list"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ══ MODALS ══ -->
+
+<!-- AIRCRAFT -->
+<div class="modal-overlay" id="modal-aircraft" onclick="if(event.target===this)closeModal(this.id)">
+  <div class="modal">
+    <h3>Register Aircraft</h3><p class="modal-sub">Add a new aircraft to the fleet registry</p>
+    <div class="form-row">
+      <div class="form-group"><label>Aircraft Name</label><input id="a-name" placeholder="e.g. Alpha Jet"/></div>
+      <div class="form-group"><label>NAF Number</label><input id="a-nafno" placeholder="e.g. NAF 471"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Tail Number</label><input id="a-tail" placeholder="e.g. AJ-471"/></div>
+      <div class="form-group"><label>Aircraft Type</label>
+        <select id="a-type"><option>Fighter / Attack</option><option>Transport</option><option>Helicopter</option><option>Trainer</option><option>Reconnaissance</option><option>Maritime Patrol</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Home Base</label><select id="a-base"><option>NAF Base Kaduna</option><option>NAF Base Lagos (Ikeja)</option><option>NAF Base Abuja</option><option>NAF Base Kainji</option><option>NAF Base Makurdi</option><option>NAF Base Maiduguri</option><option>NAF Base Yola</option><option>NAF Base Enugu</option></select></div>
+      <div class="form-group"><label>Status</label><select id="a-status"><option>Operational</option><option>Maintenance</option><option>Grounded</option></select></div>
+    </div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-aircraft')">Cancel</button><button class="btn-save" onclick="saveAircraft()">Save Aircraft</button></div>
+  </div>
+</div>
+
+<!-- VEHICLE -->
+<div class="modal-overlay" id="modal-vehicle" onclick="if(event.target===this)closeModal(this.id)">
+  <div class="modal">
+    <h3>Register Vehicle</h3><p class="modal-sub">Add a ground vehicle or equipment</p>
+    <div class="form-row">
+      <div class="form-group"><label>Vehicle Name</label><input id="v-name" placeholder="e.g. Fuel Bowser"/></div>
+      <div class="form-group"><label>NAF Number</label><input id="v-nafno" placeholder="e.g. NAF-V-001"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Plate Number</label><input id="v-plate" placeholder="e.g. NG-AF-001"/></div>
+      <div class="form-group"><label>Vehicle Type</label><select id="v-type"><option>Fuel Bowser</option><option>Tow Tractor</option><option>Ambulance</option><option>Fire Tender</option><option>Personnel Carrier</option><option>Cargo Truck</option><option>Command Vehicle</option><option>Other</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Base</label><select id="v-base"><option>NAF Base Kaduna</option><option>NAF Base Lagos (Ikeja)</option><option>NAF Base Abuja</option><option>NAF Base Kainji</option><option>NAF Base Makurdi</option><option>NAF Base Maiduguri</option><option>NAF Base Yola</option><option>NAF Base Enugu</option></select></div>
+      <div class="form-group"><label>Status</label><select id="v-status"><option>Available</option><option>Maintenance</option><option>Deployed</option></select></div>
+    </div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-vehicle')">Cancel</button><button class="btn-save" onclick="saveVehicle()">Save Vehicle</button></div>
+  </div>
+</div>
+
+<!-- CREW -->
+<div class="modal-overlay" id="modal-crew" onclick="if(event.target===this)closeModal(this.id)">
+  <div class="modal">
+    <h3>Register Personnel</h3><p class="modal-sub">Add a crew member or personnel record</p>
+    <div class="form-row">
+      <div class="form-group"><label>Full Name</label><input id="c-name" placeholder="e.g. Emeka Obi"/></div>
+      <div class="form-group"><label>Service Number</label><input id="c-svcno" placeholder="e.g. NAF/2020/042"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Rank</label><select id="c-rank"><option>Air Marshal</option><option>Air Vice Marshal</option><option>Air Commodore</option><option>Group Captain</option><option>Wing Commander</option><option>Squadron Leader</option><option>Flight Lieutenant</option><option>Flying Officer</option><option>Pilot Officer</option><option>Warrant Officer</option><option>Flight Sergeant</option><option>Sergeant</option><option>Corporal</option><option>Aircraftman</option></select></div>
+      <div class="form-group"><label>Role</label><select id="c-role"><option>Pilot</option><option>Navigator</option><option>Flight Engineer</option><option>Aircraft Technician</option><option>Air Traffic Controller</option><option>Intelligence Officer</option><option>Logistics Officer</option><option>Medical Officer</option><option>Admin Officer</option><option>Other</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Base</label><select id="c-base"><option>NAF Base Kaduna</option><option>NAF Base Lagos (Ikeja)</option><option>NAF Base Abuja</option><option>NAF Base Kainji</option><option>NAF Base Makurdi</option><option>NAF Base Maiduguri</option><option>NAF Base Yola</option><option>NAF Base Enugu</option></select></div>
+      <div class="form-group"><label>Status</label><select id="c-status"><option>On Duty</option><option>On Leave</option><option>Training</option><option>Medical</option></select></div>
+    </div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-crew')">Cancel</button><button class="btn-save" onclick="saveCrew()">Save Personnel</button></div>
+  </div>
+</div>
+
+<!-- MAINTENANCE -->
+<div class="modal-overlay" id="modal-maintenance" onclick="if(event.target===this)closeModal(this.id)">
+  <div class="modal">
+    <h3>Schedule Maintenance</h3><p class="modal-sub">Create a maintenance task for an asset</p>
+    <div class="form-group"><label>Asset</label>
+      <select id="m-asset-sel"></select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Maintenance Type</label><select id="m-type"><option>Routine Inspection</option><option>Engine Overhaul</option><option>Avionics Check</option><option>Airframe Repair</option><option>Hydraulics Service</option><option>Tyre Replacement</option><option>Oil Change</option><option>Annual Service</option><option>Other</option></select></div>
+      <div class="form-group"><label>Priority</label><select id="m-priority"><option>Normal</option><option>High</option><option>Critical</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Scheduled Date</label><input type="date" id="m-date"/></div>
+      <div class="form-group"><label>Assigned Technician</label><select id="m-tech"><option value="">— None —</option></select></div>
+    </div>
+    <div class="form-group"><label>Notes</label><textarea id="m-notes" placeholder="Describe the maintenance work required..."></textarea></div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-maintenance')">Cancel</button><button class="btn-save" onclick="saveMaintenance()">Schedule</button></div>
+  </div>
+</div>
+
+<!-- ASSIGN -->
+<div class="modal-overlay" id="modal-assign" onclick="if(event.target===this)closeModal(this.id)">
+  <div class="modal">
+    <h3>Assign Crew to Asset</h3><p class="modal-sub">Link a crew member to an aircraft or vehicle</p>
+    <div class="form-group"><label>Asset</label><select id="as-asset"></select></div>
+    <div class="form-group"><label>Crew Member</label><select id="as-crew"></select></div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('modal-assign')">Cancel</button><button class="btn-save" onclick="saveAssignment()">Assign</button></div>
+  </div>
+</div>
+
+<script>
+// ══ STATE ══
+const BASES = ['NAF Base Kaduna','NAF Base Lagos (Ikeja)','NAF Base Abuja','NAF Base Kainji','NAF Base Makurdi','NAF Base Maiduguri','NAF Base Yola','NAF Base Enugu'];
+const AV_COLORS = ['av-blue','av-purple','av-teal','av-coral','av-green'];
+const USER_COLORS = ['#185FA5','#3C3489','#085041','#993C1D','#3B6D11'];
+
+let S = {
+  user: null,
+  aircraft: [], vehicles: [], crew: [],
+  maintenance: [], assignments: [],
+  activity: [], users: [],
+  currentPage: 'dashboard'
+};
+
+function load(){
+  const d = localStorage.getItem('naf-v2');
+  if(d){ const p=JSON.parse(d); ['aircraft','vehicles','crew','maintenance','assignments','activity','users'].forEach(k=>{ S[k]=p[k]||[]; }); }
+}
+function save(){
+  localStorage.setItem('naf-v2', JSON.stringify({aircraft:S.aircraft,vehicles:S.vehicles,crew:S.crew,maintenance:S.maintenance,assignments:S.assignments,activity:S.activity,users:S.users}));
+}
+
+// ══ TOAST ══
+function toast(msg, type='info'){
+  const el=document.createElement('div');
+  el.className='toast-msg';
+  const colors={info:'var(--navy)',success:'var(--green)',warning:'var(--amber)',error:'var(--red)'};
+  el.style.background=colors[type]||colors.info;
+  el.textContent=msg;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(()=>el.classList.add('show'),10);
+  setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(),300); },3000);
+}
+
+// ══ AUTH ══
+function switchAuthTab(tab){
+  document.querySelectorAll('.tab-auth').forEach((t,i)=>t.classList.toggle('active',['login','register'][i]===tab));
+  document.querySelectorAll('.auth-form').forEach(f=>f.classList.remove('active'));
+  document.getElementById('auth-'+tab).classList.add('active');
+}
+function selectRole(el,role){
+  document.querySelectorAll('.role-badge').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('r-role').value=role;
+}
+function register(){
+  const name=v('r-name'), svc=v('r-svc'), pass=v('r-pass'), base=v('r-base'), rank=v('r-rank'), role=v('r-role');
+  if(!name||!svc||!pass||!base){ toast('Fill in all fields','warning'); return; }
+  if(S.users.find(u=>u.svc===svc)){ toast('Service number already registered','error'); return; }
+  const initials=name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+  S.users.push({ id:Date.now(), name, svc, pass, base, rank, role, initials, color:USER_COLORS[S.users.length%USER_COLORS.length] });
+  save(); toast('Account created! You can now sign in.','success');
+  switchAuthTab('login');
+  document.getElementById('l-svc').value=svc;
+}
+function login(){
+  const svc=v('l-svc'), pass=v('l-pass'), base=v('l-base');
+  if(!svc||!base){ toast('Enter service number and select base','warning'); return; }
+  load();
+  // find user or create guest
+  let user = S.users.find(u=>u.svc===svc);
+  if(!user){
+    const initials=svc.replace(/\//g,'').slice(-2).toUpperCase();
+    user={ id:Date.now(), name:'Officer '+svc.split('/').pop(), svc, pass, base, rank:'Officer', role:'Admin', initials, color:USER_COLORS[0] };
+    S.users.push(user); save();
+  }
+  S.user=user;
+  S.user.base=base;
+  setupUI(); renderAll();
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+}
+function logout(){
+  S.user=null;
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  ['l-svc','l-pass'].forEach(id=>{ const el=document.getElementById(id); if(el)el.value=''; });
+}
+function setupUI(){
+  const u=S.user;
+  document.getElementById('user-name').textContent=u.name;
+  document.getElementById('user-base').textContent=u.base;
+  document.getElementById('topbar-base').textContent=u.base;
+  document.getElementById('user-av').textContent=u.initials;
+  document.getElementById('user-av').style.background=u.color;
+  const chip=document.getElementById('role-chip');
+  chip.textContent=u.role;
+  chip.className='role-chip role-'+u.role.toLowerCase();
+  document.getElementById('nav-users').style.display=u.role==='Admin'?'flex':'none';
+}
+
+// ══ NAV ══
+function showPage(page, el){
+  document.querySelectorAll('.page-content').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  if(el) el.classList.add('active');
+  S.currentPage=page;
+  const titles={dashboard:'Dashboard',aircraft:'Aircraft Fleet',vehicles:'Ground Vehicles',crew:'Personnel Registry',maintenance:'Maintenance Schedule',assignments:'Crew Assignments',reports:'Reports & Analytics',users:'User Access Control'};
+  document.getElementById('page-title').textContent=titles[page]||page;
+  const addBtn=document.getElementById('add-btn');
+  const expBtn=document.getElementById('export-btn');
+  addBtn.style.display=['aircraft','vehicles','crew'].includes(page)?'flex':'none';
+  expBtn.style.display=['reports','aircraft','vehicles','crew'].includes(page)?'flex':'none';
+  if(page==='reports') renderReports();
+  if(page==='maintenance') populateMaintModal();
+  if(page==='assignments') { populateAssignModal(); renderAssignments(); }
+  if(page==='users') renderUsers();
+  if(window.innerWidth<=900) document.getElementById('sidebar').classList.remove('open');
+}
+function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open'); }
+
+// ══ MODAL ══
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function openAddModal(){
+  const modals={aircraft:'modal-aircraft',vehicles:'modal-vehicle',crew:'modal-crew'};
+  const m=modals[S.currentPage]; if(m) openModal(m);
+}
+
+// ══ HELPERS ══
+function v(id){ return document.getElementById(id).value.trim(); }
+function addActivity(name, detail, icon, cls){
+  const now=new Date();
+  S.activity.push({ name, detail, icon, cls, time:now.toLocaleTimeString('en-NG',{hour:'2-digit',minute:'2-digit'}), ts:now.getTime() });
+  if(S.activity.length>30) S.activity.shift();
+}
+function statusPill(s){
+  const m={Operational:'pill-op',Available:'pill-avail','On Duty':'pill-active',Maintenance:'pill-maint',Grounded:'pill-ground',Deployed:'pill-active',Training:'pill-active','On Leave':'pill-maint',Medical:'pill-ground'};
+  return m[s]||'pill-op';
+}
+function getInitials(name){ return name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(); }
+function daysUntil(dateStr){
+  const d=new Date(dateStr), now=new Date();
+  now.setHours(0,0,0,0); d.setHours(0,0,0,0);
+  return Math.round((d-now)/(1000*60*60*24));
+}
+function fmtDate(dateStr){
+  if(!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'});
+}
+
+// ══ AIRCRAFT ══
+function saveAircraft(){
+  const name=v('a-name'), nafno=v('a-nafno');
+  if(!name||!nafno){ toast('Name and NAF number required','warning'); return; }
+  S.aircraft.push({ id:Date.now(), name, nafno, tail:v('a-tail'), type:v('a-type'), base:v('a-base'), status:v('a-status'), assignedCrew:[] });
+  addActivity(nafno+' — '+name,'Registered as '+v('a-status'),'✈','ai');
+  save(); renderAll(); closeModal('modal-aircraft');
+  ['a-name','a-nafno','a-tail'].forEach(id=>document.getElementById(id).value='');
+  toast('Aircraft registered','success');
+}
+function renderAircraft(){
+  const tb=document.getElementById('aircraft-body');
+  const em=document.getElementById('aircraft-empty');
+  tb.innerHTML='';
+  if(!S.aircraft.length){ em.style.display='block'; return; }
+  em.style.display='none';
+  S.aircraft.forEach(a=>{
+    const assigned=a.assignedCrew.map(cid=>S.crew.find(c=>c.id===cid)).filter(Boolean);
+    const crewHtml=assigned.length?assigned.map(c=>`<span class="crew-chip" style="font-size:11px;padding:2px 7px">${c.name.split(' ')[0]}</span>`).join(''):'<span style="color:var(--muted);font-size:11px">Unassigned</span>';
+    const row=document.createElement('tr');
+    row.innerHTML=`
+      <td><div class="asset-cell"><div class="asset-cell-icon ai">✈</div><div><div class="asset-cell-name">${a.name}</div><div class="asset-cell-sub">${a.nafno}</div></div></div></td>
+      <td>${a.tail||'—'}</td><td>${a.type}</td><td>${a.base}</td>
+      <td><span class="pill ${statusPill(a.status)}">${a.status}</span></td>
+      <td>${crewHtml}</td>
+      <td><button class="action-btn" onclick="cycleStatus('aircraft',${a.id})">Status</button><button class="action-btn del-btn" onclick="del('aircraft',${a.id})">Remove</button></td>`;
+    tb.appendChild(row);
+  });
+}
+
+// ══ VEHICLES ══
+function saveVehicle(){
+  const name=v('v-name'), nafno=v('v-nafno');
+  if(!name||!nafno){ toast('Name and NAF number required','warning'); return; }
+  S.vehicles.push({ id:Date.now(), name, nafno, plate:v('v-plate'), type:v('v-type'), base:v('v-base'), status:v('v-status'), assignedCrew:[] });
+  addActivity(nafno+' — '+name,'Registered as '+v('v-status'),'🚛','ve');
+  save(); renderAll(); closeModal('modal-vehicle');
+  ['v-name','v-nafno','v-plate'].forEach(id=>document.getElementById(id).value='');
+  toast('Vehicle registered','success');
+}
+function renderVehicles(){
+  const tb=document.getElementById('vehicles-body');
+  const em=document.getElementById('vehicles-empty');
+  tb.innerHTML='';
+  if(!S.vehicles.length){ em.style.display='block'; return; }
+  em.style.display='none';
+  S.vehicles.forEach(v2=>{
+    const assigned=v2.assignedCrew.map(cid=>S.crew.find(c=>c.id===cid)).filter(Boolean);
+    const crewHtml=assigned.length?assigned.map(c=>`<span class="crew-chip" style="font-size:11px;padding:2px 7px">${c.name.split(' ')[0]}</span>`).join(''):'<span style="color:var(--muted);font-size:11px">Unassigned</span>';
+    const row=document.createElement('tr');
+    row.innerHTML=`
+      <td><div class="asset-cell"><div class="asset-cell-icon ve">🚛</div><div><div class="asset-cell-name">${v2.name}</div><div class="asset-cell-sub">${v2.nafno}</div></div></div></td>
+      <td>${v2.plate||'—'}</td><td>${v2.type}</td><td>${v2.base}</td>
+      <td><span class="pill ${statusPill(v2.status)}">${v2.status}</span></td>
+      <td>${crewHtml}</td>
+      <td><button class="action-btn" onclick="cycleStatus('vehicles',${v2.id})">Status</button><button class="action-btn del-btn" onclick="del('vehicles',${v2.id})">Remove</button></td>`;
+    tb.appendChild(row);
+  });
+}
+
+// ══ CREW ══
+function saveCrew(){
+  const name=v('c-name'), svcno=v('c-svcno');
+  if(!name||!svcno){ toast('Name and service number required','warning'); return; }
+  S.crew.push({ id:Date.now(), name, svcno, rank:v('c-rank'), role:v('c-role'), base:v('c-base'), status:v('c-status'), initials:getInitials(name), colorIdx:S.crew.length%AV_COLORS.length, assignedAsset:null });
+  addActivity(v('c-rank')+' '+name,'Registered — '+v('c-role'),'👤','cr');
+  save(); renderAll(); closeModal('modal-crew');
+  ['c-name','c-svcno'].forEach(id=>document.getElementById(id).value='');
+  toast('Personnel registered','success');
+}
+function renderCrew(){
+  const tb=document.getElementById('crew-body');
+  const em=document.getElementById('crew-empty');
+  tb.innerHTML='';
+  if(!S.crew.length){ em.style.display='block'; return; }
+  em.style.display='none';
+  S.crew.forEach(c=>{
+    const asset=[...S.aircraft,...S.vehicles].find(a=>a.assignedCrew&&a.assignedCrew.includes(c.id));
+    const assetHtml=asset?`<span style="font-size:12px">${asset.nafno}</span>`:'<span style="color:var(--muted);font-size:11px">None</span>';
+    const row=document.createElement('tr');
+    row.innerHTML=`
+      <td><div class="asset-cell">
+        <div class="${AV_COLORS[c.colorIdx]}" style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0">${c.initials}</div>
+        <div><div class="asset-cell-name">${c.name}</div><div class="asset-cell-sub">${c.svcno}</div></div>
+      </div></td>
+      <td>${c.rank}</td><td>${c.role}</td><td>${c.base}</td><td>${assetHtml}</td>
+      <td><span class="pill ${statusPill(c.status)}">${c.status}</span></td>
+      <td><button class="action-btn" onclick="cycleCrewStatus(${c.id})">Status</button><button class="action-btn del-btn" onclick="del('crew',${c.id})">Remove</button></td>`;
+    tb.appendChild(row);
+  });
+}
+
+// ══ STATUS CYCLE ══
+const aircraftSt=['Operational','Maintenance','Grounded'];
+const vehicleSt=['Available','Maintenance','Deployed'];
+const crewSt=['On Duty','On Leave','Training','Medical'];
+function cycleStatus(cat, id){
+  const item=S[cat].find(x=>x.id===id); if(!item) return;
+  const opts=cat==='aircraft'?aircraftSt:vehicleSt;
+  item.status=opts[(opts.indexOf(item.status)+1)%opts.length];
+  addActivity(item.name||item.nafno,'Status → '+item.status,cat==='aircraft'?'✈':'🚛',cat==='aircraft'?'ai':'ve');
+  save(); renderAll(); toast('Status updated to '+item.status);
+}
+function cycleCrewStatus(id){
+  const item=S.crew.find(x=>x.id===id); if(!item) return;
+  item.status=crewSt[(crewSt.indexOf(item.status)+1)%crewSt.length];
+  addActivity(item.name,'Status → '+item.status,'👤','cr');
+  save(); renderAll(); toast('Status updated to '+item.status);
+}
+function del(cat, id){
+  if(!confirm('Remove this record?')) return;
+  S[cat]=S[cat].filter(x=>x.id!==id);
+  // remove from assignments
+  S.assignments=S.assignments.filter(a=>a.assetId!==id&&a.crewId!==id);
+  [...S.aircraft,...S.vehicles].forEach(a=>{ if(a.assignedCrew) a.assignedCrew=a.assignedCrew.filter(cid=>cid!==id); });
+  save(); renderAll(); toast('Record removed','warning');
+}
+
+// ══ MAINTENANCE ══
+function populateMaintModal(){
+  const sel=document.getElementById('m-asset-sel');
+  sel.innerHTML='<option value="">— Select asset —</option>';
+  [...S.aircraft,...S.vehicles].forEach(a=>{ sel.innerHTML+=`<option value="${a.id}">${a.nafno} — ${a.name}</option>`; });
+  const tech=document.getElementById('m-tech');
+  tech.innerHTML='<option value="">— None —</option>';
+  S.crew.filter(c=>['Aircraft Technician','Flight Engineer'].includes(c.role)).forEach(c=>{ tech.innerHTML+=`<option value="${c.id}">${c.rank} ${c.name}</option>`; });
+  // set default date to today
+  document.getElementById('m-date').value=new Date().toISOString().split('T')[0];
+}
+function saveMaintenance(){
+  const assetId=document.getElementById('m-asset-sel').value;
+  const date=v('m-date');
+  if(!assetId||!date){ toast('Select asset and date','warning'); return; }
+  const asset=[...S.aircraft,...S.vehicles].find(a=>a.id==assetId);
+  const techId=document.getElementById('m-tech').value;
+  const tech=S.crew.find(c=>c.id==techId);
+  S.maintenance.push({ id:Date.now(), assetId:Number(assetId), assetName:asset.nafno+' — '+asset.name, assetIcon:S.aircraft.find(a=>a.id==assetId)?'✈':'🚛', type:v('m-type'), priority:v('m-priority'), date, techId:techId?Number(techId):null, techName:tech?tech.rank+' '+tech.name:'', notes:v('m-notes'), done:false });
+  addActivity(asset.nafno,'Maintenance scheduled: '+v('m-type'),'🔧','mn');
+  save(); renderAll(); closeModal('modal-maintenance');
+  document.getElementById('m-notes').value='';
+  toast('Maintenance scheduled','success');
+}
+function markMaintDone(id){
+  const m=S.maintenance.find(x=>x.id===id); if(!m) return;
+  m.done=true;
+  addActivity(m.assetName,'Maintenance completed: '+m.type,'✅','ai');
+  save(); renderAll(); toast('Marked as complete','success');
+}
+function renderMaintenance(){
+  const list=document.getElementById('maintenance-list');
+  const items=S.maintenance.filter(m=>!m.done).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const done=S.maintenance.filter(m=>m.done);
+  let overdue=0, soon=0;
+  items.forEach(m=>{ const d=daysUntil(m.date); if(d<0) overdue++; else if(d<=7) soon++; });
+  document.getElementById('m-overdue').textContent=overdue;
+  document.getElementById('m-soon').textContent=soon;
+  document.getElementById('m-done').textContent=done.length;
+  // update badge
+  const badge=document.getElementById('maint-badge');
+  badge.textContent=overdue; badge.style.display=overdue>0?'inline':'none';
+  if(!items.length){ list.innerHTML='<div class="empty-state"><div class="empty-icon">🔧</div><p>No pending maintenance. All clear!</p></div>'; return; }
+  list.innerHTML=items.map(m=>{
+    const days=daysUntil(m.date);
+    const daysClass=days<0?'days-overdue':days<=7?'days-soon':'days-ok';
+    const daysLabel=days<0?`${Math.abs(days)} days overdue`:days===0?'Due today':`${days} days`;
+    const priorityColor=m.priority==='Critical'?'var(--red)':m.priority==='High'?'var(--amber-mid)':'var(--muted)';
+    return `<div class="maint-card">
+      <div class="maint-icon ${S.aircraft.find(a=>a.id===m.assetId)?'ai':'ve'}">${m.assetIcon}</div>
+      <div class="maint-info">
+        <h4>${m.assetName}</h4>
+        <p>${m.type} · <span style="color:${priorityColor};font-weight:500">${m.priority}</span>${m.techName?' · '+m.techName:''}</p>
+        ${m.notes?`<p style="margin-top:4px;color:var(--muted);font-size:11px">${m.notes}</p>`:''}
+      </div>
+      <div class="maint-date">
+        <div class="date-val">${fmtDate(m.date)}</div>
+        <div><span class="days-badge ${daysClass}">${daysLabel}</span></div>
+        <button class="action-btn" style="margin-top:6px;font-size:11px" onclick="markMaintDone(${m.id})">✓ Done</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══ ASSIGNMENTS ══
+function populateAssignModal(){
+  const asSel=document.getElementById('as-asset');
+  asSel.innerHTML='<option value="">— Select asset —</option>';
+  [...S.aircraft,...S.vehicles].forEach(a=>{ asSel.innerHTML+=`<option value="${a.id}">${a.nafno} — ${a.name}</option>`; });
+  const crSel=document.getElementById('as-crew');
+  crSel.innerHTML='<option value="">— Select crew —</option>';
+  S.crew.forEach(c=>{ crSel.innerHTML+=`<option value="${c.id}">${c.rank} ${c.name} · ${c.role}</option>`; });
+}
+function saveAssignment(){
+  const assetId=Number(document.getElementById('as-asset').value);
+  const crewId=Number(document.getElementById('as-crew').value);
+  if(!assetId||!crewId){ toast('Select both asset and crew member','warning'); return; }
+  const asset=[...S.aircraft,...S.vehicles].find(a=>a.id===assetId);
+  const crew=S.crew.find(c=>c.id===crewId);
+  if(!asset||!crew){ toast('Asset or crew not found','error'); return; }
+  if(asset.assignedCrew.includes(crewId)){ toast('Already assigned','warning'); return; }
+  asset.assignedCrew.push(crewId);
+  crew.assignedAsset=assetId;
+  addActivity(crew.name,'Assigned to '+asset.nafno,'📋','mn');
+  save(); renderAll(); renderAssignments(); closeModal('modal-assign');
+  toast(crew.name+' assigned to '+asset.nafno,'success');
+}
+function removeAssignment(assetId, crewId){
+  const asset=[...S.aircraft,...S.vehicles].find(a=>a.id===assetId);
+  const crew=S.crew.find(c=>c.id===crewId);
+  if(asset) asset.assignedCrew=asset.assignedCrew.filter(id=>id!==crewId);
+  if(crew) crew.assignedAsset=null;
+  save(); renderAll(); renderAssignments();
+  toast('Assignment removed');
+}
+function renderAssignments(){
+  const airList=document.getElementById('assign-aircraft-list');
+  const vehList=document.getElementById('assign-vehicle-list');
+  function renderAssetAssign(assets, container, icon, cls){
+    if(!assets.length){ container.innerHTML=`<div class="empty-state"><div class="empty-icon">${icon}</div><p>No assets registered.</p></div>`; return; }
+    container.innerHTML=assets.map(a=>{
+      const assigned=a.assignedCrew.map(cid=>S.crew.find(c=>c.id===cid)).filter(Boolean);
+      return `<div class="assign-card">
+        <div class="assign-header">
+          <h4><span class="${cls}" style="display:inline-flex;width:24px;height:24px;align-items:center;justify-content:center;border-radius:5px;font-size:12px;margin-right:6px">${icon}</span>${a.nafno} — ${a.name}</h4>
+          <span class="pill ${statusPill(a.status)}">${a.status}</span>
+        </div>
+        <div class="assign-crew-list">
+          ${assigned.length?assigned.map(c=>`<div class="crew-chip">
+            <div class="crew-chip-av">${c.initials}</div>
+            <span>${c.name}</span>
+            <button class="remove-crew" onclick="removeAssignment(${a.id},${c.id})">✕</button>
+          </div>`).join(''):'<span class="no-assign">No crew assigned</span>'}
+        </div>
+      </div>`;
+    }).join('');
+  }
+  renderAssetAssign(S.aircraft, airList, '✈', 'ai');
+  renderAssetAssign(S.vehicles, vehList, '🚛', 've');
+}
+
+// ══ DASHBOARD ══
+function renderDashboard(){
+  const airOp=S.aircraft.filter(a=>a.status==='Operational').length;
+  const vehAv=S.vehicles.filter(v=>v.status==='Available').length;
+  const maint=[...S.aircraft,...S.vehicles].filter(a=>a.status==='Maintenance').length;
+  const overdue=S.maintenance.filter(m=>!m.done&&daysUntil(m.date)<0).length;
+  document.getElementById('d-aircraft').textContent=S.aircraft.length;
+  document.getElementById('d-aircraft-op').textContent=airOp+' operational';
+  document.getElementById('d-vehicles').textContent=S.vehicles.length;
+  document.getElementById('d-vehicles-av').textContent=vehAv+' available';
+  document.getElementById('d-crew').textContent=S.crew.length;
+  document.getElementById('d-maint').textContent=maint;
+  document.getElementById('d-overdue').textContent=overdue>0?overdue+' overdue maintenance':'';
+  // activity
+  const actEl=document.getElementById('recent-activity');
+  if(!S.activity.length){ actEl.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><p>No activity yet.</p></div>'; }
+  else actEl.innerHTML=S.activity.slice().reverse().slice(0,8).map(a=>`<div class="activity-item"><div class="act-icon ${a.cls}">${a.icon}</div><div class="act-info"><p>${a.name}</p><span>${a.detail}</span></div><div class="act-time">${a.time}</div></div>`).join('');
+  // alerts
+  const alertEl=document.getElementById('alerts-panel');
+  const alerts=[];
+  S.aircraft.filter(a=>a.status==='Grounded').forEach(a=>alerts.push({level:'red',msg:a.name+' is grounded',sub:a.base}));
+  S.maintenance.filter(m=>!m.done&&daysUntil(m.date)<0).forEach(m=>alerts.push({level:'red',msg:'Overdue: '+m.assetName,sub:m.type}));
+  S.maintenance.filter(m=>!m.done&&daysUntil(m.date)>=0&&daysUntil(m.date)<=7).forEach(m=>alerts.push({level:'amber',msg:'Due soon: '+m.assetName,sub:fmtDate(m.date)+' · '+m.type}));
+  S.aircraft.filter(a=>a.status==='Maintenance').forEach(a=>alerts.push({level:'amber',msg:a.name+' in maintenance',sub:a.base}));
+  if(!alerts.length) alertEl.innerHTML='<div class="empty-state"><div class="empty-icon">✅</div><p>No alerts. All systems normal.</p></div>';
+  else alertEl.innerHTML=alerts.slice(0,8).map(a=>`<div class="alert-item"><div class="alert-dot alert-${a.level}"></div><div class="alert-info"><p>${a.msg}</p><span>${a.sub}</span></div></div>`).join('');
+}
+
+// ══ REPORTS ══
+function renderReports(){
+  const total=S.aircraft.length+S.vehicles.length+S.crew.length;
+  const airOp=S.aircraft.length?Math.round(S.aircraft.filter(a=>a.status==='Operational').length/S.aircraft.length*100):0;
+  const vehAv=S.vehicles.length?Math.round(S.vehicles.filter(v=>v.status==='Available').length/S.vehicles.length*100):0;
+  const maintAll=S.aircraft.filter(a=>a.status==='Maintenance').length+S.vehicles.filter(v=>v.status==='Maintenance').length;
+  const mRate=total?Math.round(maintAll/total*100):0;
+  document.getElementById('r-readiness').textContent=airOp+'%';
+  document.getElementById('r-vavail').textContent=vehAv+'%';
+  document.getElementById('r-total').textContent=total;
+  document.getElementById('r-mrate').textContent=mRate+'%';
+  // breakdown bars
+  const bd=document.getElementById('report-breakdown');
+  const rows=[
+    {label:'Aircraft',total:S.aircraft.length,items:[{l:'Operational',n:S.aircraft.filter(a=>a.status==='Operational').length,c:'var(--green)'},{l:'Maintenance',n:S.aircraft.filter(a=>a.status==='Maintenance').length,c:'var(--amber-mid)'},{l:'Grounded',n:S.aircraft.filter(a=>a.status==='Grounded').length,c:'var(--red)'}]},
+    {label:'Vehicles',total:S.vehicles.length,items:[{l:'Available',n:S.vehicles.filter(v=>v.status==='Available').length,c:'var(--teal)'},{l:'Maintenance',n:S.vehicles.filter(v=>v.status==='Maintenance').length,c:'var(--amber-mid)'},{l:'Deployed',n:S.vehicles.filter(v=>v.status==='Deployed').length,c:'var(--purple)'}]},
+    {label:'Personnel',total:S.crew.length,items:[{l:'On Duty',n:S.crew.filter(c=>c.status==='On Duty').length,c:'var(--purple)'},{l:'Training',n:S.crew.filter(c=>c.status==='Training').length,c:'var(--sky)'},{l:'Leave/Medical',n:S.crew.filter(c=>['On Leave','Medical'].includes(c.status)).length,c:'var(--red)'}]},
+  ];
+  bd.innerHTML=rows.map(r=>`<div style="margin-bottom:20px"><div style="font-size:13px;font-weight:500;margin-bottom:10px;color:var(--navy)">${r.label} <span style="color:var(--muted);font-weight:400">(${r.total} total)</span></div>${r.items.map(i=>`<div class="report-bar-wrap"><div class="report-bar-label"><span>${i.l}</span><span>${i.n}</span></div><div class="report-bar"><div class="report-bar-fill" style="width:${r.total?Math.round(i.n/r.total*100):0}%;background:${i.c}"></div></div></div>`).join('')}</div>`).join('');
+  // by base
+  const basesEl=document.getElementById('report-bases');
+  const baseCounts={};
+  BASES.forEach(b=>baseCounts[b]=0);
+  [...S.aircraft,...S.vehicles,...S.crew].forEach(item=>{ if(baseCounts[item.base]!==undefined) baseCounts[item.base]++; });
+  const maxCount=Math.max(...Object.values(baseCounts),1);
+  basesEl.innerHTML=Object.entries(baseCounts).filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1]).map(([base,n])=>`<div class="report-bar-wrap"><div class="report-bar-label"><span>${base.replace('NAF Base ','')}</span><span>${n}</span></div><div class="report-bar"><div class="report-bar-fill" style="width:${Math.round(n/maxCount*100)}%;background:var(--sky)"></div></div></div>`).join('')||'<p style="color:var(--muted);font-size:13px">No data yet.</p>';
+}
+
+// ══ USERS ══
+function renderUsers(){
+  const list=document.getElementById('users-list');
+  if(!S.users.length){ list.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><p>No users registered.</p></div>'; return; }
+  const perms={Admin:['View','Add','Edit','Delete','Reports','User Mgmt'],Officer:['View','Add','Edit','Reports'],Technician:['View','Add','Edit'],Viewer:['View','Reports']};
+  list.innerHTML=S.users.map(u=>{
+    const userPerms=perms[u.role]||['View'];
+    return `<div class="user-card">
+      <div class="user-av-lg" style="background:${u.color}">${u.initials}</div>
+      <div class="user-card-info">
+        <h4>${u.name} <span style="font-weight:400;font-size:12px;color:var(--muted)">· ${u.svc}</span></h4>
+        <p>${u.rank||'—'} · ${u.base}</p>
+        <div class="perm-list">
+          <span class="perm-tag" style="background:var(--purple-light);color:var(--purple);border-color:rgba(60,52,137,.2)">${u.role}</span>
+          ${userPerms.map(p=>`<span class="perm-tag on">${p}</span>`).join('')}
+        </div>
+      </div>
+      ${u.id!==S.user.id?`<button class="action-btn del-btn" onclick="delUser(${u.id})">Remove</button>`:'<span style="font-size:11px;color:var(--muted)">You</span>'}
+    </div>`;
+  }).join('');
+}
+function delUser(id){
+  if(!confirm('Remove this user?')) return;
+  S.users=S.users.filter(u=>u.id!==id);
+  save(); renderUsers(); toast('User removed','warning');
+}
+
+// ══ PDF EXPORT ══
+function exportPDF(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const now=new Date().toLocaleDateString('en-NG');
+  doc.setFillColor(4,44,83); doc.rect(0,0,210,30,'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text('NAF Asset Tracker — Report',14,12);
+  doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text('Nigerian Air Force · Generated: '+now+' · Base: '+S.user.base,14,20);
+  doc.text('Page: '+S.currentPage.toUpperCase(),14,26);
+  doc.setTextColor(0,0,0); doc.setFontSize(11);
+  let y=40;
+  function section(title){ doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(4,44,83); doc.text(title,14,y); y+=6; doc.setDrawColor(200,210,220); doc.line(14,y,196,y); y+=8; doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(0,0,0); }
+  function row(label,val){ doc.setFont('helvetica','bold'); doc.text(label+':',14,y); doc.setFont('helvetica','normal'); doc.text(String(val),80,y); y+=6; if(y>270){ doc.addPage(); y=20; } }
+  section('Summary');
+  row('Aircraft',S.aircraft.length+' ('+S.aircraft.filter(a=>a.status==='Operational').length+' operational)');
+  row('Vehicles',S.vehicles.length+' ('+S.vehicles.filter(v=>v.status==='Available').length+' available)');
+  row('Personnel',S.crew.length+' registered');
+  row('Pending Maintenance',S.maintenance.filter(m=>!m.done).length);
+  y+=6;
+  if(S.aircraft.length){ section('Aircraft Fleet');
+    S.aircraft.forEach(a=>{ row(a.nafno,a.name+' · '+a.status+' · '+a.base); }); y+=6; }
+  if(S.vehicles.length){ section('Ground Vehicles');
+    S.vehicles.forEach(v=>{ row(v.nafno,v.name+' · '+v.status+' · '+v.base); }); y+=6; }
+  if(S.crew.length){ section('Personnel');
+    S.crew.forEach(c=>{ row(c.svcno,c.rank+' '+c.name+' · '+c.role+' · '+c.status); }); y+=6; }
+  if(S.maintenance.filter(m=>!m.done).length){ section('Pending Maintenance');
+    S.maintenance.filter(m=>!m.done).forEach(m=>{ row(m.assetName,m.type+' · Due: '+fmtDate(m.date)+' · '+m.priority); }); }
+  doc.save('NAF-Asset-Report-'+now.replace(/\//g,'-')+'.pdf');
+  toast('PDF exported successfully','success');
+}
+
+// ══ SEARCH ══
+function filterTable(tbodyId, q){
+  document.getElementById(tbodyId).querySelectorAll('tr').forEach(row=>{
+    row.style.display=row.textContent.toLowerCase().includes(q.toLowerCase())?'':'none';
+  });
+}
+
+// ══ RENDER ALL ══
+function renderAll(){
+  renderDashboard(); renderAircraft(); renderVehicles(); renderCrew(); renderMaintenance();
+}
+</script>
+</body>
+</html>
