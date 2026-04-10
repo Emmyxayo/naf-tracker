@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
 <style>
 :root {
   --navy:#042C53;--navy-mid:#0C447C;--navy-light:#185FA5;
@@ -615,38 +616,55 @@ function selectRole(el,role){
 async function register(){
   const name=v('r-name'),svc=v('r-svc'),pass=v('r-pass'),base=v('r-base'),rank=v('r-rank'),role=v('r-role');
   if(!name||!svc||!pass||!base){ toast('Fill in all fields','warning'); return; }
+  if(pass.length<6){ toast('Password must be at least 6 characters','warning'); return; }
+  await loadAll();
   if(S.users.find(u=>u.svc===svc)){ toast('Service number already registered','error'); return; }
-  const btn=document.getElementById('register-btn'); btn.disabled=true; btn.textContent='Creating...';
+  const btn=document.getElementById('register-btn'); btn.disabled=true; btn.textContent='Securing password...';
   const initials=name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
   const color=USER_COLORS[S.users.length%USER_COLORS.length];
-  const result=await dbInsert('users',{name,svc,pass,base,rank,role,initials,color});
+  const hashedPass = await bcrypt.hash(pass, 10);
+  btn.textContent='Creating account...';
+  const result=await dbInsert('users',{name,svc,pass:hashedPass,base,rank,role,initials,color});
   btn.disabled=false; btn.textContent='Create Account';
   if(!result){ return; }
   S.users.push(result);
-  toast('Account created! Sign in now.','success');
+  toast('Account created securely! Sign in now.','success');
   switchAuthTab('login');
   document.getElementById('l-svc').value=svc;
+  document.getElementById('r-pass').value='';
 }
 async function login(){
   const svc=v('l-svc'),pass=v('l-pass'),base=v('l-base');
-  if(!svc||!base){ toast('Enter service number and select base','warning'); return; }
-  const btn=document.getElementById('login-btn'); btn.disabled=true; btn.textContent='Signing in...';
+  if(!svc||!pass||!base){ toast('Enter all login details','warning'); return; }
+  const btn=document.getElementById('login-btn'); btn.disabled=true; btn.textContent='Verifying...';
   await loadAll();
-  let user=S.users.find(u=>u.svc===svc);
+  const user=S.users.find(u=>u.svc===svc);
   if(!user){
-    // auto-create for demo
-    const initials=svc.replace(/\//g,'').slice(-2).toUpperCase();
-    const result=await dbInsert('users',{name:'Officer '+svc.split('/').pop(),svc,pass,base,rank:'Officer',role:'Admin',initials,color:USER_COLORS[0]});
-    if(result){ S.users.push(result); user=result; }
+    btn.disabled=false; btn.textContent='Sign In';
+    toast('Service number not found. Please register first.','error'); return;
+  }
+  // Check if password is bcrypt hash or legacy plaintext
+  let passwordValid = false;
+  if(user.pass && user.pass.startsWith('$2')){
+    // bcrypt hash — verify securely
+    passwordValid = await bcrypt.compare(pass, user.pass);
+  } else {
+    // legacy plaintext — compare directly then upgrade to hash
+    passwordValid = (pass === user.pass);
+    if(passwordValid){
+      const hashedPass = await bcrypt.hash(pass, 10);
+      await dbUpdate('users', user.id, {pass: hashedPass});
+      user.pass = hashedPass;
+    }
   }
   btn.disabled=false; btn.textContent='Sign In';
-  if(!user){ toast('Login failed. Try again.','error'); return; }
+  if(!passwordValid){ toast('Incorrect password. Try again.','error'); return; }
   S.user={...user, base};
   setupUI(); renderAll();
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
-  // realtime subscription
   subscribeRealtime();
+  toast('Welcome back, '+user.name,'success');
 }
 function logout(){
   S.user=null;
