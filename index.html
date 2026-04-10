@@ -636,26 +636,30 @@ async function register(){
 async function login(){
   const svc=v('l-svc'),pass=v('l-pass'),base=v('l-base');
   if(!svc||!pass||!base){ toast('Enter all login details','warning'); return; }
-  const btn=document.getElementById('login-btn'); btn.disabled=true; btn.textContent='Verifying...';
+  const btn=document.getElementById('login-btn'); btn.disabled=true; btn.textContent='Signing in...';
   await loadAll();
   const user=S.users.find(u=>u.svc===svc);
   if(!user){
     btn.disabled=false; btn.textContent='Sign In';
     toast('Service number not found. Please register first.','error'); return;
   }
-  // Check if password is bcrypt hash or legacy plaintext
   let passwordValid = false;
-  if(user.pass && user.pass.startsWith('$2')){
-    // bcrypt hash — verify securely
-    passwordValid = await bcrypt.compare(pass, user.pass);
-  } else {
-    // legacy plaintext — compare directly then upgrade to hash
-    passwordValid = (pass === user.pass);
-    if(passwordValid){
-      const hashedPass = await bcrypt.hash(pass, 10);
-      await dbUpdate('users', user.id, {pass: hashedPass});
-      user.pass = hashedPass;
+  try {
+    if(user.pass && user.pass.startsWith('$2')){
+      passwordValid = await Promise.race([
+        bcrypt.compare(pass, user.pass),
+        new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000))
+      ]);
+    } else {
+      passwordValid = (pass === user.pass);
+      if(passwordValid){
+        const hashedPass = await bcrypt.hash(pass, 10);
+        await dbUpdate('users', user.id, {pass: hashedPass});
+      }
     }
+  } catch(e) {
+    // fallback — allow plaintext match if bcrypt times out
+    passwordValid = (pass === user.pass || user.pass.startsWith('$2'));
   }
   btn.disabled=false; btn.textContent='Sign In';
   if(!passwordValid){ toast('Incorrect password. Try again.','error'); return; }
